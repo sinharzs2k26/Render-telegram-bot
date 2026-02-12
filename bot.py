@@ -98,6 +98,17 @@ async def toggle_suspension(svc_id, action):
 
 # --- COMMAND HANDLERS ---
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Entry point command."""
+    await update.message.reply_html(
+        "<b>🌐 Render Manager Bot</b>\n\n"
+        "• /services - List all services & URLs\n"
+        "• /deploy - Select a service to deploy\n"
+        "• /suspend - Select a service to suspend\n"
+        "• /resume - Select a service to resume\n"
+        "• /env - View service environment variables"
+    )
+
 async def list_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
     res = requests.get(f"{RENDER_URL}/services?limit=50", headers=get_headers())
     if res.status_code == 200:
@@ -152,7 +163,7 @@ def main():
     threading.Thread(target=run_health_server, daemon=True).start()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    app.add_handler(CommandHandler("services", list_services))
+   app.add_handler(CommandHandler("start", start)) app.add_handler(CommandHandler("services", list_services))
     for cmd in ["serviceinfo", "deploy", "lastdeploy", "suspend", "resume", "env"]:
         app.add_handler(CommandHandler(cmd, action_picker))
     
