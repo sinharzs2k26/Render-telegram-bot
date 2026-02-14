@@ -34,7 +34,8 @@ def get_headers(context: ContextTypes.DEFAULT_TYPE):
         return None
     return {
         "Authorization": f"Bearer {api_key}",
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "Content-Type": "application/json"
     }
 
 async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -82,7 +83,7 @@ async def get_service_info(svc_id, context):
 async def trigger_deploy(svc_id, context):
     headers = get_headers(context)
     r = requests.post(f"{RENDER_URL}/services/{svc_id}/deploys", headers=headers)
-    return "🚀 <b>Deploy triggered!</b>Send /deployinfo to see deploy information." if r.status_code == 201 else f"❌ Error: {r.text}"
+    return "🚀 <b>Deploy triggered!</b>\nSend /deployinfo to see deploy information." if r.status_code == 201 else f"❌ Error: {r.text}"
 
 async def cancel_last_deploy(svc_id, context):
     headers = get_headers(context)
@@ -151,7 +152,6 @@ async def update_env_variable(svc_id, context, user_input):
     url = f"{RENDER_URL}/services/{svc_id}/env-vars/{key}"
     payload = {"value": value}
     headers = get_headers(context)
-    headers["Content-Type"] = "application/json"
     r = requests.put(url, json=payload, headers=headers)
     
     if r.status_code == 200:
@@ -174,7 +174,6 @@ async def update_full_env(svc_id, context, text_input):
 
     url = f"{RENDER_URL}/services/{svc_id}/env-vars"
     headers = headers
-    headers["Content-Type"] = "application/json"
     r = requests.put(url, json=payload, headers=headers)
     
     if r.status_code == 200:
@@ -264,7 +263,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     welcome_text = (
         "<b>🤖 Render Management Bot</b>\n\n"
-        f"<b>👋 Hello, {user.first_name}!</b> I am your mobile command center for Render.com.\n\n"
+        f"<b>👋 Hello, {user.first_name}!</b> I am your mobile command center for Render.com, a cloud application hosting platform.\n\n"
         "<b>🔻 I can help you directly from Telegram -</b>\n"
         "• Manage services\n"
         "• Update environment variables\n"
@@ -277,6 +276,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lists all commands and how to use them."""
     help_text = (
+        "📌 This bot is made to control Render's web services only.\n\n"
         "<b>🛠 Available Commands & Usage</b>\n\n"
         
         "<b>📋 Services</b>\n"
