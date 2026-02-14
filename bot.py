@@ -82,7 +82,7 @@ async def get_service_info(svc_id, context):
 async def trigger_deploy(svc_id, context):
     headers = get_headers(context)
     r = requests.post(f"{RENDER_URL}/services/{svc_id}/deploys", headers=headers)
-    return "🚀 <b>Deploy triggered!</b>" if r.status_code == 201 else f"❌ Error: {r.text}"
+    return "🚀 <b>Deploy triggered!</b>Send /deployinfo to see deploy information." if r.status_code == 201 else f"❌ Error: {r.text}"
 
 async def cancel_last_deploy(svc_id, context):
     headers = get_headers(context)
