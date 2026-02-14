@@ -8,7 +8,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ForceRe
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 # --- CONFIGURATION ---
-TELEGRAM_TOKEN = '8556710977:AAEz5sBHsH8Rt3xEA6UuyiF_6-1-EcLvW6A'
+TELEGRAM_TOKEN = '8545526325:AAGkIZX3gSi1oXL7WfsHrBHxKJJUzdyiRiY'
 RENDER_API_KEY = 'rnd_FvfIjIejEsKjFC8dn4oxawV6PRnq'
 RENDER_URL = "https://api.render.com/v1"
 
