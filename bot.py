@@ -44,8 +44,7 @@ async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(
             "<b>🔑 Login to Render</b>\n\n"
-            "Please provide your API key to use the bot: <code>rnd_xxxxxxxxxxxx</code>\n\n"
-            "<i>Your key is only stored in this session's memory.</i>",
+            "Please provide your API key to use the bot: <code>rnd_xxxxxxxxxxxx</code>\n\n",
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
         )
@@ -54,7 +53,7 @@ async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Clears the user's API key from memory."""
     if "api_key" in context.user_data:
         del context.user_data["api_key"]
-        await update.message.reply_text("🔒 <b>Logged out.</b> Your API key has been cleared from session memory.", parse_mode="HTML")
+        await update.message.reply_text("🔒 <b>Logged out.</b> Your API key has been cleared.", parse_mode="HTML")
     else:
         await update.message.reply_text("You weren't logged in anyway!")
         
