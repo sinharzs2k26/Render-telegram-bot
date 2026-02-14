@@ -9,7 +9,6 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 
 # --- CONFIGURATION ---
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
-RENDER_API_KEY = os.environ.get('RENDER_API_KEY')
 RENDER_URL = "https://api.render.com/v1"
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
