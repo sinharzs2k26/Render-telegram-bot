@@ -39,6 +39,7 @@ Bot link: `t.me/RenderTelegram_bot`
 | `/start` | Welcome and introduction |
 | `/help` | View all commands and how to use them |
 | `/login` | Securely connect your Render API Key |
+| `/accountinfo` | See your Render account information |
 | `/logout` | Clear your session and API key |
 | `/services` | List all active/suspended services |
 | `/serviceinfo` | Get deep-dive details of a service |
@@ -58,7 +59,6 @@ Bot link: `t.me/RenderTelegram_bot`
 | `/changebuildcmd` | Change build command of a service |
 | `/buildfilter` | Add ignored paths whose changes will not trigger a new build |
 | `/deleteservice` | Permanently delete a service |
-| `/accountinfo` | See your Render account information |
 
 ---
 
