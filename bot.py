@@ -38,26 +38,119 @@ def get_headers(context: ContextTypes.DEFAULT_TYPE):
         "Content-Type": "application/json"
     }
 
+# --- COMMAND HANDLERS ---
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Welcomes the user and introduces the bot."""
+    user = update.effective_user
+    welcome_text = (
+        "<b>🤖 Render Management Bot</b>\n\n"
+        f"<b>👋 Hello, {user.first_name}!</b> I am your mobile command center for Render.com, a cloud application hosting platform.\n\n"
+        "<b>🔻 I can help you directly from Telegram -</b>\n"
+        "• Manage and update services\n"
+        "• Update environment variables\n"
+        "• Monitor deployments.\n"
+        "• See service logs.\n\n"
+        "👉 Send /help to see the available commands and their usages.\n\n"
+        "<i>📌 You have to <b>/login</b> with your <b>Render API key</b> first, otherwise the management commands won't work.</i>"
+    )
+    await update.message.reply_html(welcome_text)
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Lists all commands and how to use them."""
+    help_text = (
+        "📌 This bot is made to control Render's <b>web services</b> only.\n\n"
+        "<b>🛠 Available Commands & Usage</b>\n\n"
+        "• /accountinfo - See your Render account information.\n\n"
+        "<b>📋 Services</b>\n"
+        "• /services - List all services with status and URLs.\n"
+        "• /serviceinfo - View deep-dive details of a service.\n"
+        "• /rename - Change name of a service.\n"
+        "• /changestartcmd - Change start command of a service.\n"
+        "• /changebuildcmd - Change build command of a service.\n"
+        "• /buildfilter - Add ignored paths whose changes will not trigger a new build.\n"
+        "• /deleteservice - Permanently delete a service.\n\n"
+        "<b>🚀 Deployments</b>\n"
+        "• /deploy - Trigger a new manual deployment.\n"
+        "• /deployinfo - Show the status of the most recent deploy.\n"
+        "• /canceldeploy - Stop an in-progress deployment.\n"
+        "• /toggleautodeploy - Turn ON or OFF auto deploy of a service.\n"
+        "• /logs - See logs of a deployed service.\n"
+        "• /suspend - Pause a running service.\n"
+        "• /resume - Start a suspended service.\n\n"
+        "<b>🔑 Environment (Env) Vars</b>\n"
+        "• /listenv - View all keys and values for a service.\n"
+        "• /updatenv - Add or update a variable.\n"
+        "• /deletenv - Delete a specific variable by its key.\n"
+        "• /updatefullenv - Add multiple variables or bulk replace all with a new list.\n\n"
+        "<i>Note: Most commands will ask you to select a service first.</i>"
+    )
+    await update.message.reply_html(help_text)
+    
 async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Initiates the login process by asking for the key."""
     if "api_key" in context.user_data:
         await update.message.reply_text("You were logged in already!")
     else:
         await update.message.reply_text(
-            "<b>🔑 Login to Render</b>\n\n"
-            "Please provide your API key to use the bot: <code>rnd_xxxxxxxxxxxx</code>\n\n",
+            "<b>🔑 Login to Render</b>\n"
+            "Please provide your API key to use the bot: <code>rnd_xxxxxxxxxxxx</code>\n\n"
+            "📌 <i>Your API key will be pinned for your quick access if the bot server restarts and so your key gets cleared.</i>",
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
         )
 
+async def get_account_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    headers = get_headers(context)
+    if not headers:
+        await update.message.reply_text("❌ You are not logged in.\nSend /login")
+        
+    url = f"{RENDER_URL}/users"
+    r = requests.get(url, headers=headers)
+    
+    if r.status_code == 200:
+        data = r.json()
+        name = data.get("name", "N/A")
+        email = data.get("email", "N/A")
+        
+        info_message = ("👤 <b>Render Account Info</b>\n\n"
+                        f"<b>Name:</b> {name}\n"
+                        f"<b>Email:</b> <code>{email}</code>\n\n")
+        await update.message.reply_html(info_message)
+        
 async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Clears the user's API key from memory."""
+    """Clears the key and unpins the quick-access message."""
     if "api_key" in context.user_data:
         del context.user_data["api_key"]
-        await update.message.reply_text("🔒 <b>Logged out.</b> Your API key has been cleared.", parse_mode="HTML")
+        try:
+            await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
+        except:
+            pass
+        await update.message.reply_text("🔒 <b>Logged out.</b> Key cleared and unpinned.", parse_mode="HTML")
     else:
-        await update.message.reply_text("You weren't logged in anyway!")
+        await update.message.reply_text("You weren't logged in!")
+
+async def list_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    headers = get_headers(context)
+    if not headers:
+        await update.message.reply_text("❌ You are not logged in.\nSend /login")
         
+    res = requests.get(f"{RENDER_URL}/services?limit=50", headers=headers)
+    if res.status_code == 200:
+        full_message = "<b>📋 Render Services List</b>\n" + "—" * 14 + "\n"
+        for item in res.json():
+            svc = item['service']
+            details = svc.get('serviceDetails', {})
+            public_url = details.get('url', 'No public URL')
+            dash_url = svc.get('serviceDetailsUrl', f"https://dashboard.render.com/web/{svc['id']}")
+            status_emoji = "🟢" if svc['suspended'] == "not_suspended" else "🔴"
+            
+            full_message += (f"<u>{status_emoji} <b>{svc['name']}</b></u>\n"
+                            f"<b>Service ID: </b><code>{svc['id']}</code>\n\n"
+                            f"<b>🔗 Service url: </b>{public_url}\n\n"
+                            f"👉 <a href='{dash_url}'>Tap here to view on <b>Render Dashboard</b></a>\n\n\n")
+        await update.message.reply_text(full_message, parse_mode="HTML", disable_web_page_preview=True)
+        
+# --- FUNCTIONS ---
 async def get_service_info(svc_id, context):
     headers = get_headers(context)
     r = requests.get(f"{RENDER_URL}/services/{svc_id}", headers=headers)
@@ -83,7 +176,7 @@ async def get_service_info(svc_id, context):
 async def trigger_deploy(svc_id, context):
     headers = get_headers(context)
     r = requests.post(f"{RENDER_URL}/services/{svc_id}/deploys", headers=headers)
-    return "🚀 <b>Deploy triggered!</b>\nSend /deployinfo to see deploy information." if r.status_code == 201 else f"❌ Error: {r.text}"
+    return "🚀 <b>Deploy triggered!</b>\nSend /logs to see runtime logs." if r.status_code == 201 else f"❌ Error: {r.text}"
 
 async def cancel_last_deploy(svc_id, context):
     headers = get_headers(context)
@@ -319,20 +412,31 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     prompt_text = update.message.reply_to_message.text
-    user_input = update.message.text.strip()
+    user_input = update.message.text.strip()    
     
     if "API" in prompt_text:
         test_res = requests.get(
             "https://api.render.com/v1/owners", 
             headers={"Authorization": f"Bearer {user_input}"}
-        )     
+        )
         if test_res.status_code == 200:
             context.user_data["api_key"] = user_input
-            await update.message.reply_text("✅ Login successful! You can now use management commands.\n\nIf you want to logout, send /logout")
+            await update.message.reply_text(
+                "✅ <b>Login successful!</b> You can now use management commands.\n\n"
+                "If you want to logout, send /logout and your API key will be cleared and unpinned.",
+                parse_mode="HTML"
+            )
+            try:
+                await context.bot.pin_chat_message(
+                    chat_id=update.effective_chat.id,
+                    message_id=update.message.message_id,
+                    disable_notification=True
+                )
+            except Exception as e:
+                print(f"Pin failed: {e}")
         else:
-            await update.message.reply_text("❌ <b>Invalid Key.</b> Please try /login again and ensure the key is correct.", parse_mode="HTML")
-        return
-    
+            await update.message.reply_text("❌ <b>Invalid Key.</b> Please try /login again.")
+            
     match = re.search(r"srv-[a-z0-9]+", prompt_text)
     if not match:
         return
@@ -373,94 +477,7 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(result_msg, parse_mode="HTML")
         else:
             await update.message.reply_text("❌ Deletion cancelled. Confirmation word did not match.")
-    
-# --- COMMAND HANDLERS ---
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Welcomes the user and introduces the bot."""
-    user = update.effective_user
-    welcome_text = (
-        "<b>🤖 Render Management Bot</b>\n\n"
-        f"<b>👋 Hello, {user.first_name}!</b> I am your mobile command center for Render.com, a cloud application hosting platform.\n\n"
-        "<b>🔻 I can help you directly from Telegram -</b>\n"
-        "• Manage and update services\n"
-        "• Update environment variables\n"
-        "• Monitor deployments.\n"
-        "• See service logs.\n\n"
-        "👉 Send /help to see the available commands and their usages.\n\n"
-        "<i>📌 You have to <b>/login</b> with your <b>Render API key</b> first, otherwise the management commands won't work.</i>"
-    )
-    await update.message.reply_html(welcome_text)
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Lists all commands and how to use them."""
-    help_text = (
-        "📌 This bot is made to control Render's web services only.\n\n"
-        "<b>🛠 Available Commands & Usage</b>\n\n"
-        "• /accountinfo - See your Render account information.\n\n"
-        "<b>📋 Services</b>\n"
-        "• /services - List all services with status and URLs.\n"
-        "• /serviceinfo - View deep-dive details of a service.\n"
-        "• /rename - Change name of a service.\n"
-        "• /changestartcmd - Change start command of a service.\n"
-        "• /changebuildcmd - Change build command of a service.\n"
-        "• /buildfilter - Add ignored paths whose changes will not trigger a new build.\n"
-        "• /deleteservice - Permanently delete a service.\n\n"
-        "<b>🚀 Deployments</b>\n"
-        "• /deploy - Trigger a new manual deployment.\n"
-        "• /deployinfo - Show the status of the most recent deploy.\n"
-        "• /canceldeploy - Stop an in-progress deployment.\n"
-        "• /toggleautodeploy - Turn ON or OFF auto deploy of a service.\n"
-        "• /logs - See logs of a deployed service.\n"
-        "• /suspend - Pause a running service.\n"
-        "• /resume - Start a suspended service.\n\n"
-        "<b>🔑 Environment (Env) Vars</b>\n"
-        "• /listenv - View all keys and values for a service.\n"
-        "• /updatenv - Add or update a variable.\n"
-        "• /deletenv - Delete a specific variable by its key.\n"
-        "• /updatefullenv - Add multiple variables or bulk replace all with a new list.\n\n"
-        "<i>Note: Most commands will ask you to select a service first.</i>"
-    )
-    await update.message.reply_html(help_text)
-        
-async def list_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    headers = get_headers(context)
-    if not headers:
-        await update.message.reply_text("❌ You are not logged in.\nSend /login")
-        
-    res = requests.get(f"{RENDER_URL}/services?limit=50", headers=headers)
-    if res.status_code == 200:
-        full_message = "<b>📋 Render Services List</b>\n" + "—" * 14 + "\n"
-        for item in res.json():
-            svc = item['service']
-            details = svc.get('serviceDetails', {})
-            public_url = details.get('url', 'No public URL')
-            dash_url = svc.get('serviceDetailsUrl', f"https://dashboard.render.com/web/{svc['id']}")
-            status_emoji = "🟢" if svc['suspended'] == "not_suspended" else "🔴"
-            
-            full_message += (f"<u>{status_emoji} <b>{svc['name']}</b></u>\n"
-                            f"<b>Service ID: </b><code>{svc['id']}</code>\n\n"
-                            f"<b>🔗 Service url: </b>{public_url}\n\n"
-                            f"👉 <a href='{dash_url}'>Tap here to view on <b>Render Dashboard</b></a>\n\n\n")
-        await update.message.reply_text(full_message, parse_mode="HTML", disable_web_page_preview=True)
-
-async def get_account_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    headers = get_headers(context)
-    if not headers:
-        await update.message.reply_text("❌ You are not logged in.\nSend /login")
-        
-    url = f"{RENDER_URL}/users"
-    r = requests.get(url, headers=headers)
-    
-    if r.status_code == 200:
-        data = r.json()
-        name = data.get("name", "N/A")
-        email = data.get("email", "N/A")
-        
-        info_message = ("👤 <b>Render Account Info</b>\n\n"
-                        f"<b>Name:</b> {name}\n"
-                        f"<b>Email:</b> <code>{email}</code>\n\n")
-        await update.message.reply_html(info_message)
-        
 async def action_picker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     headers = get_headers(context)
     if not headers:
@@ -510,8 +527,9 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif action == "listenv":
         msg = await fetch_env_vars(svc_id, context)
     elif action == "updatenv":
-        msg = "📌 If you want to add or update more variables, tap on the service's button above again. ⬆️ Or send /updatefullenv to replace all environment variables with a new list.\n\n"
-        "<b>N.B. </b>After updating the environment variables via API, your web service won't be deployed automatically even if auto deploy is turned on. So, you have to do it manually."
+        msg = ("📌 If you want to add or update more variables, tap on the service's button above again. ⬆️\n"
+        "Or send /updatefullenv to replace all environment variables with a new list.\n\n"
+        "<b>N.B. </b>After updating the environment variables via API, your web service won't be deployed automatically even if auto deploy is turned on. So, you have to do it manually.")
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
             "✍️ Please reply to this message with the <b>environment variable</b> you want to add or update.\n<b>Format: </b>KEY = VALUE",
@@ -519,8 +537,8 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="HTML"
         )
     elif action == "updatefullenv":
-        msg = f"⚠️ <b>Warning:</b> This replaces EVERYTHING."
-        "<b>N.B. </b>After updating the environment variables via API, your web service won't be deployed automatically even if auto deploy is turned on. So, you have to do it manually."
+        msg = ("⚠️ <b>Warning:</b> This replaces EVERYTHING.\n\n"
+        "<b>N.B. </b>After updating the environment variables via API, your web service won't be deployed automatically even if auto deploy is turned on. So, you have to do it manually.")
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
             "✍️ Please reply to this message with your new <b>environment variables</b> list.\n<b>Format</b> (one per line):\n<code>KEY1 = VALUE1\nKEY2 = VALUE2</code>\n\n",
@@ -539,7 +557,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
         msg = ""
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
-            "✍️ Please reply to this message with the NEW name you want to set.\n\n"
+            "✍️ Please reply to this message with the <b>NEW name</b> you want to set.\n\n"
             "<i>Use lowercase, numbers, and hyphens only.</i>",
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
@@ -548,7 +566,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
         msg = ""
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
-            f"✍️ Please reply to this message with the NEW Start Command you want to set.\n\n"
+            f"✍️ Please reply to this message with the <b>NEW Start Command</b> you want to set.\n\n"
             "Example: <code>python main.py</code> or <code>npm start</code>",
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
@@ -557,7 +575,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
         msg = ""
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
-            f"✍️ Please reply to this message with the NEW Build Command you want to set.\n\n"
+            f"✍️ Please reply to this message with the <b>NEW Build Command</b> you want to set.\n\n"
             "Example: <code>npm install && npm run build</code>",
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
@@ -566,7 +584,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
         msg = ""
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
-            "✍️ Please reply to this message with the paths to IGNORE for your service.\n"
+            "✍️ Please reply to this message with the <b>paths</b> to IGNORE for your service.\n"
             "Separate them with commas or new lines.\n\n"
             "Example:\n<code>README.md, docs/*, .gitignore</code>",
             reply_markup=ForceReply(selective=True),
@@ -576,7 +594,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
         msg = "⚠️ <b>Warning:</b> This action is permanent."
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
-            "⚠️ Are you sure you want to PERMANENTLY DELETE this service?\nTo confirm, reply to this message with the word: <b>CONFIRM</b>",
+            "⚠️ Are you sure you want to <b>PERMANENTLY DELETE</b> this service?\nTo confirm, reply to this message with the word: <b>CONFIRM</b>",
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
         )
