@@ -281,7 +281,7 @@ async def fetch_env_vars(svc_id, context):
     r = requests.get(f"{RENDER_URL}/services/{svc_id}/env-vars", headers=headers)
     if r.status_code == 200:
         vars_list = "\n".join([f"<b>{v['envVar']['key']}:</b> <code>{v['envVar']['value']}</code>\n" for v in r.json()])
-        return f"<b>🔑 Env Vars:</b>\n" + "—" * 7 + "\n" f"{vars_list}" if vars_list else "No variables found."
+        return f"<b>🔑 Env Vars:</b>\n" + "—" * 8 + "\n" f"{vars_list}" if vars_list else "No variables found."
     return f"❌ Error fetching env: {r.status_code}"
 
 async def update_env_variable(svc_id, context, user_input):
@@ -415,12 +415,25 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text.strip()    
     
     if "API" in prompt_text:
+        waiting_msg = await update.message.reply_text("⏳ Please wait while processing your API key.")
+        
+        try:
+           await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
+        except:
+            pass
+        
+        try:
+            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=waiting_msg.message_id)
+        except:
+            pass
+
         test_res = requests.get(
             "https://api.render.com/v1/owners", 
             headers={"Authorization": f"Bearer {user_input}"}
         )
         if test_res.status_code == 200:
             context.user_data["api_key"] = user_input
+    
             await update.message.reply_text(
                 "✅ <b>Login successful!</b> You can now use management commands.\n\n"
                 "If you want to logout, send /logout and your API key will be cleared and unpinned.",
@@ -433,9 +446,10 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     disable_notification=True
                 )
             except Exception as e:
-                print(f"Pin failed: {e}")
+                await update.message.reply_text(f"Pin failed: {e}")
         else:
             await update.message.reply_html("❌ <b>Invalid Key.</b> Please try /login again.")
+        return
             
     match = re.search(r"srv-[a-z0-9]+", prompt_text)
     if not match:
