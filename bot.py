@@ -415,15 +415,9 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text.strip()    
     
     if "API" in prompt_text:
-        waiting_msg = await update.message.reply_text("⏳ Please wait while processing your API key.")
         
         try:
            await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
-        except:
-            pass
-        
-        try:
-            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=waiting_msg.message_id)
         except:
             pass
 
