@@ -1,6 +1,7 @@
 import re
 import os
 import logging
+import asyncio
 import requests
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -94,7 +95,7 @@ async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "<b>🔑 Login to Render</b>\n"
             "Please provide your API key to use the bot: <code>rnd_xxxxxxxxxxxx</code>\n\n"
-            "📌 <i>Your API key will be pinned for your quick access while logging in back if the bot server restarts and so your key gets cleared.</i>",
+            "📌 <i>Your API key will be pinned for your quick access while logging back in if the bot server restarts and so your key gets cleared.</i>",
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
         )
@@ -207,6 +208,7 @@ async def cancel_last_deploy(svc_id, context):
 async def get_last_deploy(svc_id, context):
     headers = get_headers(context)
     r = requests.get(f"{RENDER_URL}/services/{svc_id}/deploys?limit=1", headers=headers)
+    
     if r.status_code == 200:
         deploy = r.json()
         if not deploy:
@@ -214,9 +216,9 @@ async def get_last_deploy(svc_id, context):
             
         d = deploy[0]['deploy']
         commit = d.get('commit', {})
-        
         status_emoji = "✅" if d['status'] == "live" else "❌" if d['status'] in ["build_failed", "canceled"] else "⏳"
-        
+        keyboard = [[InlineKeyboardButton("🔄 Refresh info", callback_data=f"refresh_deploy_{svc_id}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         info = (
             f"<b>🚀 Last Deploy Info</b>\n" + "—" * 10 + "\n"
             f"<b>Status:</b> {status_emoji} <code>{d['status']}</code>\n"
@@ -226,7 +228,7 @@ async def get_last_deploy(svc_id, context):
             f"<b>🆔 Commit ID:</b>\n<code>{commit.get('id', 'N/A')[:7]}</code>\n\n"
             f"<b>⏱ Finished:</b> <code>{d.get('finishedAt', 'N/A')}</code>"
         )
-        return info
+        return info, reply_markup
     return f"❌ Error fetching deploy info: {r.status_code}"
 
 async def toggle_auto_deploy(svc_id, status, context):
@@ -272,7 +274,11 @@ async def get_service_logs(svc_id, context):
         for log in log_entries:
             msg = log.get("message", "").strip()
             formatted_logs += f"• <code>{msg}</code>\n\n"
-        return f"📋 <b>Recent Logs:</b>\n\n{formatted_logs}📌 If want to see new logs, tap again your service's button above again.⬆️"
+            
+        keyboard = [[InlineKeyboardButton("🔄 Refresh Logs", callback_data=f"refresh_logs_{svc_id}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        message_text = f"📋 <b>Recent Logs:</b>\n\n{formatted_logs}"
+        return message_text, reply_markup
     else:
         return f"❌ Failed to fetch logs: {log_res.text}"
         
@@ -415,7 +421,7 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text.strip()    
     
     if "API" in prompt_text:
-        
+
         try:
            await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
         except:
@@ -510,7 +516,8 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif action == "canceldeploy":
         msg = await cancel_last_deploy(svc_id, context)
     elif action == "deployinfo":
-        msg = await get_last_deploy(svc_id, context)
+        text, markup = await get_last_deploy(svc_id, context)
+        await query.message.reply_text(text, reply_markup=markup, parse_mode="HTML")
     elif action == "toggleautodeploy":
         keyboard = [
             [
@@ -524,12 +531,10 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
-        return
-    elif action.startswith("adset"):
-        _, status, svc_id = query.data.split("_", 2)
-        msg = await toggle_auto_deploy(svc_id, status, context)
+        return    
     elif action == "logs":
-        msg = await get_service_logs(svc_id, context)
+        text, markup = await get_service_logs(svc_id, context)
+        await query.message.reply_text(text, reply_markup=markup, parse_mode="HTML")
     elif action in ["suspend", "resume"]:
         msg = await toggle_suspension(svc_id, context, action)
     elif action == "listenv":
@@ -606,6 +611,32 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
         )
+        
+    #InlineKeyboardButton
+    elif action.startswith("adset"):
+        _, status, svc_id = query.data.split("_", 2)
+        msg = await toggle_auto_deploy(svc_id, status, context)
+    elif action.startswith("refresh"):
+        _, type, svc_id = query.data.split("_", 2)
+        
+        if type == "logs":
+            text, markup = await get_service_logs(svc_id, context)
+        else:
+            text, markup = await get_last_deploy(svc_id, context)
+            
+        try:
+            await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
+            alert_msg = await query.message.reply_text("Refreshed! ✨")
+        except Exception as e:
+            alert_msg = await query.message.reply_text("🔔 No new updates yet.")
+            
+        try:
+            await asyncio.sleep(5)
+            await context.bot.delete_message(
+                chat_id=update.effective_chat.id, 
+                message_id=alert_msg.message_id
+            )
+        except: pass
         
     else:
         msg = "Unknown action."
