@@ -473,7 +473,7 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result_msg = await change_service_name(svc_id, context, user_input)
         await update.message.reply_text(result_msg, parse_mode="HTML")
 
-    if "Start" in prompt_text:
+    elif "Start" in prompt_text:
         result_msg = await update_start_command(svc_id, context, user_input)
         await update.message.reply_text(result_msg, parse_mode="HTML")
         
