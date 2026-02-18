@@ -286,7 +286,7 @@ async def fetch_env_vars(svc_id, context):
     headers = get_headers(context)
     r = requests.get(f"{RENDER_URL}/services/{svc_id}/env-vars", headers=headers)
     if r.status_code == 200:
-        vars_list = "\n".join([f"<b>{v['envVar']['key']}:</b> <code>{v['envVar']['value']}</code>\n" for v in r.json()])
+        vars_list = "\n".join([f"<b>{v['envVar']['key']}</b> = <code>{v['envVar']['value']}</code>\n" for v in r.json()])
         return f"<b>🔑 Env Vars:</b>\n" + "—" * 8 + "\n" f"{vars_list}" if vars_list else "No variables found."
     return f"❌ Error fetching env: {r.status_code}"
 
