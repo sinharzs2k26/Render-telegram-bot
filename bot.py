@@ -1,7 +1,6 @@
 import re
 import os
 import logging
-import asyncio
 import requests
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -38,7 +37,6 @@ def get_headers(context: ContextTypes.DEFAULT_TYPE):
         "Accept": "application/json",
         "Content-Type": "application/json"
     }
-
 # --- COMMAND HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Welcomes the user and introduces the bot."""
@@ -55,7 +53,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<i>📌 You have to <b>/login</b> with your <b>Render API key</b> first, otherwise the management commands won't work.</i>"
     )
     await update.message.reply_html(welcome_text)
-
+    
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lists all commands and how to use them."""
     help_text = (
@@ -104,15 +102,12 @@ async def get_account_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     headers = get_headers(context)
     if not headers:
         await update.message.reply_text("❌ You are not logged in.\nSend /login")
-        
     url = f"{RENDER_URL}/users"
     r = requests.get(url, headers=headers)
-    
     if r.status_code == 200:
         data = r.json()
         name = data.get("name", "N/A")
         email = data.get("email", "N/A")
-        
         info_message = ("👤 <b>Render Account Info</b>\n\n"
                         f"<b>Name:</b> {name}\n"
                         f"<b>Email:</b> <code>{email}</code>\n\n")
@@ -134,7 +129,6 @@ async def list_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
     headers = get_headers(context)
     if not headers:
         await update.message.reply_text("❌ You are not logged in.\nSend /login")
-        
     res = requests.get(f"{RENDER_URL}/services?limit=50", headers=headers)
     if res.status_code == 200:
         full_message = "<b>📋 Render Services List</b>\n" + "—" * 14 + "\n"
@@ -144,13 +138,11 @@ async def list_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
             public_url = details.get('url', 'No public URL')
             dash_url = svc.get('serviceDetailsUrl', f"https://dashboard.render.com/web/{svc['id']}")
             status_emoji = "🟢" if svc['suspended'] == "not_suspended" else "🔴"
-            
             full_message += (f"<u>{status_emoji} <b>{svc['name']}</b></u>\n"
                             f"<b>Service ID: </b><code>{svc['id']}</code>\n\n"
                             f"<b>🔗 Service url: </b>{public_url}\n\n"
                             f"👉 <a href='{dash_url}'>Tap here to view on <b>Render Dashboard</b></a>\n\n\n")
         await update.message.reply_text(full_message, parse_mode="HTML", disable_web_page_preview=True)
-        
 # --- FUNCTIONS ---
 async def get_service_info(svc_id, context):
     headers = get_headers(context)
@@ -158,7 +150,6 @@ async def get_service_info(svc_id, context):
     if r.status_code == 200:
         svc = r.json()
         details = svc.get('serviceDetails', {})
-        
         info = (
             f"<b>📄 Service Info: {svc['name']}</b>\n" + "—" * 20 + "\n"
             f"<b>Status:</b> {'🟢 Active' if svc['suspended'] == 'not_suspended' else '🔴 Suspended'}\n"
@@ -183,37 +174,29 @@ async def cancel_last_deploy(svc_id, context):
     headers = get_headers(context)
     list_url = f"{RENDER_URL}/services/{svc_id}/deploys?limit=1"
     res = requests.get(list_url, headers=headers)
-    
     if res.status_code == 200:
         deploys = res.json()
         if not deploys:
             return "❌ No deployment found to cancel."
-        
         deploy_id = deploys[0]['deploy']['id']
         current_status = deploys[0]['deploy']['status']
-
         if current_status in ["live", "build_failed", "canceled"]:
             return f"⚠️ Cannot cancel. Last deploy is already <code>{current_status}</code>."
-            
         cancel_url = f"{RENDER_URL}/services/{svc_id}/deploys/{deploy_id}/cancel"
         cancel_res = requests.post(cancel_url, headers=headers)
-        
         if cancel_res.status_code == 200:
             return f"🛑 <b>Deploy Cancelled!</b>\nID: <code>{deploy_id}</code>"
         else:
             return f"❌ Failed to cancel"
-            
     return f"❌ Error fetching deploy ID: {res.status_code}"
     
 async def get_last_deploy(svc_id, context):
     headers = get_headers(context)
     r = requests.get(f"{RENDER_URL}/services/{svc_id}/deploys?limit=1", headers=headers)
-    
     if r.status_code == 200:
         deploy = r.json()
         if not deploy:
             return "No deployment history found for this service."
-            
         d = deploy[0]['deploy']
         commit = d.get('commit', {})
         status_emoji = "✅" if d['status'] == "live" else "❌" if d['status'] in ["build_failed", "canceled"] else "⏳"
@@ -236,7 +219,6 @@ async def toggle_auto_deploy(svc_id, status, context):
     payload = {"autoDeploy": "yes" if status == "on" else "no"}
     url = f"{RENDER_URL}/services/{svc_id}"
     r = requests.patch(url, json=payload, headers=headers)
-    
     if r.status_code == 200:
         icon = "✅" if status == "on" else "🛑"
         return f"{icon} <b>Auto-Deploy</b> is now <b>{status.upper()}</b> for your service."
@@ -248,7 +230,6 @@ async def get_service_logs(svc_id, context):
     owner_res = requests.get(f"{RENDER_URL}/owners", headers=headers)
     if owner_res.status_code != 200:
         return "❌ Failed to retrieve Owner ID."
-    
     owners_data = owner_res.json()
     if not owners_data:
         return "❌ No owner found for this account."
@@ -260,21 +241,16 @@ async def get_service_logs(svc_id, context):
         "resource": svc_id,
         "limit": 10
     }
-    
     log_res = requests.get(log_url, headers=headers, params=params)
-    
     if log_res.status_code == 200:
         logs_json = log_res.json()
         log_entries = logs_json.get("logs", [])
-        
         if not log_entries:
             return "📭 No logs found for this service."
-
         formatted_logs = ""
         for log in log_entries:
             msg = log.get("message", "").strip()
             formatted_logs += f"• <code>{msg}</code>\n\n"
-            
         keyboard = [[InlineKeyboardButton("🔄 Refresh Logs", callback_data=f"refresh_logs_{svc_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         message_text = f"📋 <b>Recent Logs:</b>\n\n{formatted_logs}"
@@ -293,13 +269,11 @@ async def fetch_env_vars(svc_id, context):
 async def update_env_variable(svc_id, context, user_input):
     if "=" not in user_input:
         return "❌ Invalid format. Please use: <code>KEY = VALUE</code>"
-    
     key, value = [x.strip() for x in user_input.split("=", 1)]
     url = f"{RENDER_URL}/services/{svc_id}/env-vars/{key}"
     payload = {"value": value}
     headers = get_headers(context)
     r = requests.put(url, json=payload, headers=headers)
-    
     if r.status_code == 200:
         return f"✅ Successfully set <code>{key}</code> to <code>{value}</code>"
     else:
@@ -309,19 +283,15 @@ async def update_full_env(svc_id, context, user_input):
     headers = get_headers(context)
     lines = user_input.split('\n')
     payload = []
-    
     for line in lines:
         if "=" in line:
             k, v = [x.strip() for x in line.split("=", 1)]
             payload.append({"key": k, "value": v})
-    
     if not payload:
         return "❌ No valid <code>KEY = VALUE</code> pairs found."
-
     url = f"{RENDER_URL}/services/{svc_id}/env-vars"
     headers = headers
     r = requests.put(url, json=payload, headers=headers)
-    
     if r.status_code == 200:
         return f"✅ Successfully replaced all variables for your service ({len(payload)} vars)."
     else:
@@ -332,7 +302,6 @@ async def delete_env_variable(svc_id, context, user_input):
     key = user_input
     url = f"{RENDER_URL}/services/{svc_id}/env-vars/{key}"
     r = requests.delete(url, headers=headers)
-    
     if r.status_code == 204:
         return f"🗑 <b>Deleted:</b> <code>{key}</code> from web service."
     elif r.status_code == 404:
@@ -351,7 +320,6 @@ async def change_service_name(svc_id, context, user_input):
     payload = {"name": user_input}
     url = f"{RENDER_URL}/services/{svc_id}"
     r = requests.patch(url, json=payload, headers=headers)
-    
     if r.status_code == 200:
         return f"✨ <b>Name Updated!</b>\nNew Name: <code>{user_input}</code>"
     else:
@@ -364,7 +332,6 @@ async def update_start_command(svc_id, context, user_input):
         } }
     url = f"{RENDER_URL}/services/{svc_id}"
     r = requests.patch(url, json=payload, headers=headers)
-    
     if r.status_code == 200:
         return f"🚀 <b>Start Command Updated!</b>\nNew Command: <code>{user_input}</code>"
     else:
@@ -377,7 +344,6 @@ async def update_build_command(svc_id, context, user_input):
         } }
     url = f"{RENDER_URL}/services/{svc_id}"
     r = requests.patch(url, json=payload, headers=headers)
-    
     if r.status_code == 200:
         return f"🛠 <b>Build Command Updated!</b>\nNew Command: <code>{user_input}</code>"
     else:
@@ -385,16 +351,12 @@ async def update_build_command(svc_id, context, user_input):
         
 async def update_build_filter(svc_id, user_input, context):
     headers = get_headers(context)
-    paths = [p.strip() for p in re.split(r'[,\n]', user_input) if p.strip()]
-    
+    paths = [p.strip() for p in re.split(r'[,\n]', user_input) if p.strip()]    
     if not paths:
         return "❌ No valid paths provided."
-
     payload = { "buildFilter": { "ignoredPaths": paths } }
-    
     url = f"{RENDER_URL}/services/{svc_id}"
-    r = requests.patch(url, json=payload, headers=headers)
-    
+    r = requests.patch(url, json=payload, headers=headers)    
     if r.status_code == 200:
         path_list = ", ".join([f"<code>{p}</code>" for p in paths])
         return f"🔍 <b>Build Filter Updated!</b>\nIgnored Paths: {path_list}"
@@ -405,7 +367,6 @@ async def delete_render_service(svc_id, context):
     headers = get_headers(context)
     url = f"{RENDER_URL}/services/{svc_id}"
     r = requests.delete(url, headers=headers)
-    
     if r.status_code == 204:
         return f"🗑 <b>Service Deleted.</b>"
     elif r.status_code == 404:
@@ -416,24 +377,19 @@ async def delete_render_service(svc_id, context):
 async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.reply_to_message:
         return
-        
     prompt_text = update.message.reply_to_message.text
     user_input = update.message.text.strip()    
-    
     if "API" in prompt_text:
-
         try:
            await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
         except:
             pass
-
         test_res = requests.get(
             "https://api.render.com/v1/owners", 
             headers={"Authorization": f"Bearer {user_input}"}
         )
         if test_res.status_code == 200:
             context.user_data["api_key"] = user_input
-    
             await update.message.reply_text(
                 "✅ <b>Login successful!</b> You can now use management commands.\n\n"
                 "If you want to logout, send /logout and your API key will be cleared and unpinned.",
@@ -449,42 +405,32 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(f"Pin failed: {e}")
         else:
             await update.message.reply_html("❌ <b>Invalid Key.</b> Please try /login again.")
-        return
-            
+        return            
     match = re.search(r"srv-[a-z0-9]+", prompt_text)
     if not match:
         return
-    
     svc_id = match.group(0)
-    
     if "add or update" in prompt_text:
         result_msg = await update_env_variable(svc_id, context, user_input)
         await update.message.reply_text(result_msg, parse_mode="HTML")
-        
     elif "to DELETE" in prompt_text:
         result_msg = await delete_env_variable(svc_id, context, user_input)
         await update.message.reply_text(result_msg, parse_mode="HTML")
-    
     elif "list" in prompt_text:
         result_msg = await update_full_env(svc_id, context, user_input)
         await update.message.reply_text(result_msg, parse_mode="HTML")
-
     elif "name" in prompt_text:
         result_msg = await change_service_name(svc_id, context, user_input)
         await update.message.reply_text(result_msg, parse_mode="HTML")
-
     elif "Start" in prompt_text:
         result_msg = await update_start_command(svc_id, context, user_input)
         await update.message.reply_text(result_msg, parse_mode="HTML")
-        
     elif "Build" in prompt_text:
         result_msg = await update_build_command(svc_id, context, user_input)
         await update.message.reply_text(result_msg, parse_mode="HTML")
-        
     elif "IGNORE" in prompt_text:
         result_msg = await update_build_filter(svc_id, user_input, context)
         await update.message.reply_text(result_msg, parse_mode="HTML")
-        
     elif "PERMANENTLY DELETE" in prompt_text:
         if update.message.text.strip().upper() == "CONFIRM":
             result_msg = await delete_render_service(svc_id, context)
@@ -496,29 +442,30 @@ async def action_picker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     headers = get_headers(context)
     if not headers:
         await update.message.reply_text("❌ You are not logged in.\nSend /login")
-        
     command = update.message.text.replace("/", "").lower()
     res = requests.get(f"{RENDER_URL}/services", headers=headers)
     if res.status_code == 200:
         keyboard = [[InlineKeyboardButton(item['service']['name'], callback_data=f"{command}_{item['service']['id']}")] for item in res.json()]
         await update.message.reply_text("<b>Select service:</b>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-
 # --- MAIN INTERACTION ROUTER ---
 async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
     action, svc_id = query.data.split("_", 1)    
-
     if action == "serviceinfo":
+        await query.answer()
         msg = await get_service_info(svc_id, context)
     elif action == "deploy":
+        await query.answer()
         msg = await trigger_deploy(svc_id, context)
     elif action == "canceldeploy":
+        await query.answer()
         msg = await cancel_last_deploy(svc_id, context)
     elif action == "deployinfo":
+        await query.answer()
         text, markup = await get_last_deploy(svc_id, context)
         await query.message.reply_text(text, reply_markup=markup, parse_mode="HTML")
     elif action == "toggleautodeploy":
+        await query.answer()
         keyboard = [
             [
                 InlineKeyboardButton("✅ Turn ON", callback_data=f"adset_on_{svc_id}"),
@@ -533,13 +480,17 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return    
     elif action == "logs":
+        await query.answer()
         text, markup = await get_service_logs(svc_id, context)
         await query.message.reply_text(text, reply_markup=markup, parse_mode="HTML")
     elif action in ["suspend", "resume"]:
+        await query.answer()
         msg = await toggle_suspension(svc_id, context, action)
     elif action == "listenv":
+        await query.answer()
         msg = await fetch_env_vars(svc_id, context)
     elif action == "updatenv":
+        await query.answer()
         msg = ("📌 If you want to add or update more variables, tap on the service's button above again. ⬆️\n"
         "Or send /updatefullenv to replace all environment variables with a new list.\n\n"
         "<b>N.B. </b>After updating the environment variables via API, your web service won't be deployed automatically even if auto deploy is turned on. So, you have to do it manually.")
@@ -550,6 +501,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="HTML"
         )
     elif action == "updatefullenv":
+        await query.answer()
         msg = ("⚠️ <b>Warning:</b> This replaces EVERYTHING.\n\n"
         "<b>N.B. </b>After updating the environment variables via API, your web service won't be deployed automatically even if auto deploy is turned on. So, you have to do it manually.")
         await query.message.reply_text(
@@ -559,6 +511,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="HTML"
         )
     elif action == "deletenv":
+        await query.answer()
         msg = "<b>N.B. </b>After deleting a environment variable via API, your web service won't be deployed automatically even if auto deploy is turned on. So, you have to do it manually."
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
@@ -567,6 +520,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="HTML"
         )
     elif action == "rename":
+        await query.answer()
         msg = ""
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
@@ -576,6 +530,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="HTML"
         )
     elif action == "changestartcmd":
+        await query.answer()
         msg = ""
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
@@ -585,6 +540,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="HTML"
         )
     elif action == "changebuildcmd":
+        await query.answer()
         msg = ""
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
@@ -594,6 +550,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="HTML"
         )
     elif action == "buildfilter":
+        await query.answer()
         msg = ""
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
@@ -604,6 +561,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="HTML"
         )
     elif action == "deleteservice":
+        await query.answer()
         msg = "⚠️ <b>Warning:</b> This action is permanent."
         await query.message.reply_text(
             f"<b>Service ID: </b><code>{svc_id}</code>\n\n"
@@ -611,40 +569,28 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
         )
-        
     #InlineKeyboardButton
     elif action.startswith("adset"):
+        await query.answer()
         _, status, svc_id = query.data.split("_", 2)
         msg = await toggle_auto_deploy(svc_id, status, context)
     elif action.startswith("refresh"):
         _, type, svc_id = query.data.split("_", 2)
-        
         if type == "logs":
             text, markup = await get_service_logs(svc_id, context)
         else:
             text, markup = await get_last_deploy(svc_id, context)
         try:
             await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
-            alert_msg = await query.message.reply_text("Refreshed! ✨")
+            await query.answer("Refreshed! ✨", show_alert=True)
         except Exception as e:
-            alert_msg = await query.message.reply_text("🔔 No new updates yet.")
-
-        try:
-            await asyncio.sleep(5)
-            await context.bot.delete_message(
-                chat_id=update.effective_chat.id, 
-                message_id=alert_msg.message_id
-            )
-        except: pass
+            await query.answer("🔔 No new updates yet.", show_alert=True)
     else:
         msg = "Unknown action."
-
     await query.message.reply_text(msg, parse_mode="HTML")
-
 # --- MAIN RUNNER ---
 def main():
     threading.Thread(target=run_health_server, daemon=True).start()
-    
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("login", login))
@@ -657,6 +603,5 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_reply_text))
     app.add_handler(CallbackQueryHandler(handle_interaction))
     app.run_polling()
-
 if __name__ == "__main__":
     main()
