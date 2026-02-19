@@ -8,7 +8,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ForceRe
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 # --- CONFIGURATION ---
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+TELEGRAM_TOKEN = "7991252044:AAFELnUp633pi1DC4phzDJbqHbnLnqko9k8"
 RENDER_URL = "https://api.render.com/v1"
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -381,7 +381,7 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text.strip()    
     if "API" in prompt_text:
         try:
-           await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
+            await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
         except:
             pass
         test_res = requests.get(
