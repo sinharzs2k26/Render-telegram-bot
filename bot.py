@@ -623,13 +623,12 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             text, markup = await get_service_logs(svc_id, context)
         else:
             text, markup = await get_last_deploy(svc_id, context)
-            
         try:
             await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
             alert_msg = await query.message.reply_text("Refreshed! ✨")
         except Exception as e:
             alert_msg = await query.message.reply_text("🔔 No new updates yet.")
-            
+
         try:
             await asyncio.sleep(5)
             await context.bot.delete_message(
@@ -637,7 +636,6 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 message_id=alert_msg.message_id
             )
         except: pass
-        
     else:
         msg = "Unknown action."
 
