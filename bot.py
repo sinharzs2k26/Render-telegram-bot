@@ -92,8 +92,7 @@ async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(
             "<b>🔑 Login to Render</b>\n"
-            "Please provide your API key to use the bot: <code>rnd_xxxxxxxxxxxx</code>\n\n"
-            "📌 <i>Your API key will be pinned for your quick access while logging back in if the bot server restarts and so your key gets cleared.</i>",
+            "Please provide your API key to use the bot: <code>rnd_xxxxxxxxxxxx</code>\n\n",
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
         )
@@ -117,11 +116,7 @@ async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Clears the key and unpins the quick-access message."""
     if "api_key" in context.user_data:
         del context.user_data["api_key"]
-        try:
-            await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
-        except:
-            pass
-        await update.message.reply_text("🔒 <b>Logged out.</b> Key cleared and unpinned.", parse_mode="HTML")
+        await update.message.reply_text("🔒 <b>Logged out.</b> Your API key has been cleared.", parse_mode="HTML")
     else:
         await update.message.reply_text("You weren't logged in!")
 
@@ -250,10 +245,10 @@ async def get_service_logs(svc_id, context):
         formatted_logs = ""
         for log in log_entries:
             msg = log.get("message", "").strip()
-            formatted_logs += f"• <code>{msg}</code>\n\n"
+            formatted_logs += f"• `{msg}`\n\n"
         keyboard = [[InlineKeyboardButton("🔄 Refresh Logs", callback_data=f"refresh_logs_{svc_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        message_text = f"📋 <b>Recent Logs:</b>\n\n{formatted_logs}"
+        message_text = f"📋 **Recent Logs:**\n\n{formatted_logs}"
         return message_text, reply_markup
     else:
         return f"❌ Failed to fetch logs: {log_res.text}"
@@ -380,10 +375,6 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt_text = update.message.reply_to_message.text
     user_input = update.message.text.strip()    
     if "API" in prompt_text:
-        try:
-            await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
-        except:
-            pass
         test_res = requests.get(
             "https://api.render.com/v1/owners", 
             headers={"Authorization": f"Bearer {user_input}"}
@@ -392,17 +383,9 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["api_key"] = user_input
             await update.message.reply_text(
                 "✅ <b>Login successful!</b> You can now use management commands.\n\n"
-                "If you want to logout, send /logout and your API key will be cleared and unpinned.",
+                "If you want to logout, send /logout and your API key will be cleared.",
                 parse_mode="HTML"
             )
-            try:
-                await context.bot.pin_chat_message(
-                    chat_id=update.effective_chat.id,
-                    message_id=update.message.message_id,
-                    disable_notification=True
-                )
-            except Exception as e:
-                await update.message.reply_text(f"Pin failed: {e}")
         else:
             await update.message.reply_html("❌ <b>Invalid Key.</b> Please try /login again.")
         return            
@@ -482,7 +465,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif action == "logs":
         await query.answer()
         text, markup = await get_service_logs(svc_id, context)
-        await query.message.reply_text(text, reply_markup=markup, parse_mode="HTML")
+        await query.message.reply_text(text, reply_markup=markup, parse_mode="MARKDOWN")
     elif action in ["suspend", "resume"]:
         await query.answer()
         msg = await toggle_suspension(svc_id, context, action)
@@ -581,7 +564,7 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
         else:
             text, markup = await get_last_deploy(svc_id, context)
         try:
-            await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
+            await query.edit_message_text(text, reply_markup=markup, parse_mode="MARKDOWN")
             await query.answer("Refreshed! ✨", show_alert=True)
         except Exception as e:
             await query.answer("🔔 No new updates yet.", show_alert=True)
