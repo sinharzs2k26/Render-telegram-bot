@@ -565,9 +565,9 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             text, markup = await get_last_deploy(svc_id, context)
         try:
             await query.edit_message_text(text, reply_markup=markup, parse_mode="MARKDOWN")
-            await query.answer("Refreshed! ✨", show_alert=True)
+            await query.answer("Refreshed! ✨")
         except Exception as e:
-            await query.answer("🔔 No new updates yet.", show_alert=True)
+            await query.answer("🔔 No new updates yet.")
     else:
         msg = "Unknown action."
     await query.message.reply_text(msg, parse_mode="HTML")
