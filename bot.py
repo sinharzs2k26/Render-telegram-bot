@@ -28,7 +28,6 @@ def run_health_server():
 
 # --- RENDER API HELPERS ---
 def get_headers(context: ContextTypes.DEFAULT_TYPE):
-    """Retrieves the API key stored for this specific user."""
     api_key = context.user_data.get("api_key")
     if not api_key:
         return None
@@ -39,7 +38,6 @@ def get_headers(context: ContextTypes.DEFAULT_TYPE):
     }
 # --- COMMAND HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Welcomes the user and introduces the bot."""
     user = update.effective_user
     welcome_text = (
         "<b>🤖 Render Management Bot</b>\n\n"
@@ -55,7 +53,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_html(welcome_text)
     
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Lists all commands and how to use them."""
     help_text = (
         "📌 This bot is made to control Render's <b>web services</b> only.\n\n"
         "<b>🛠 Available Commands & Usage</b>\n\n"
@@ -86,13 +83,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_html(help_text)
     
 async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Initiates the login process by asking for the key."""
     if "api_key" in context.user_data:
         await update.message.reply_text("You were logged in already!")
     else:
         await update.message.reply_text(
             "<b>🔑 Login to Render</b>\n"
-            "Please provide your API key to use the bot: <code>rnd_xxxxxxxxxxxx</code>\n\n",
+            "Please provide your API key to use the bot: <code>rnd_xxxxxxxxxxxx</code>",
             reply_markup=ForceReply(selective=True),
             parse_mode="HTML"
         )
@@ -113,7 +109,6 @@ async def get_account_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_html(info_message)
         
 async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Clears the key and unpins the quick-access message."""
     if "api_key" in context.user_data:
         del context.user_data["api_key"]
         await update.message.reply_text("🔒 <b>Logged out.</b> Your API key has been cleared.", parse_mode="HTML")
@@ -382,7 +377,8 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if test_res.status_code == 200:
             context.user_data["api_key"] = user_input
             await update.message.reply_text(
-                "✅ <b>Login successful!</b> You can now use management commands.\n\n"
+                "✅ <b>Login successful!</b> You can now use management commands.\n"
+                "<i>📌 You have to re-login if the bot server gets updates and so your API key gets cleared.</i>\n\n"
                 "If you want to logout, send /logout and your API key will be cleared.",
                 parse_mode="HTML"
             )
@@ -565,9 +561,9 @@ async def handle_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE)
             text, markup = await get_last_deploy(svc_id, context)
         try:
             await query.edit_message_text(text, reply_markup=markup, parse_mode="MARKDOWN")
-            await query.answer("Refreshed! ✨")
+            await query.answer("Refreshed! ✨", show_alert=True)
         except Exception as e:
-            await query.answer("🔔 No new updates yet.")
+            await query.answer("🔔 No new updates yet.", show_alert=True)
     else:
         msg = "Unknown action."
     await query.message.reply_text(msg, parse_mode="HTML")
