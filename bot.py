@@ -22,7 +22,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Bot is active.")
 
 def run_health_server():
-    httpd = HTTPServer(('0.0.0.0', 10000), HealthCheckHandler)
+    port = int(os.environ.get("PORT", 10000))
+    httpd = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
     httpd.serve_forever()
 
 # --- RENDER API HELPERS ---
