@@ -261,7 +261,7 @@ async def update_env_variable(svc_id, context, user_input):
     headers = get_headers(context)
     r = requests.put(url, json=payload, headers=headers)
     if r.status_code == 200:
-        return f"✅ Successfully set <code>{key}</code> to <code>{value}</code>"
+        return f"✅ Successfully set <code>{value}</code> to <code>{key}</code> variable"
     else:
         return f"❌ Failed to update: {r.text}"
 
