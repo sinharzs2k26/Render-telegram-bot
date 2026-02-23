@@ -6,14 +6,12 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ForceReply
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
-
 # --- CONFIGURATION ---
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 RENDER_URL = "https://api.render.com/v1"
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 # --- DUMMY SERVER FOR RENDER HEALTH CHECK ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -22,10 +20,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Bot is active.")
 
 def run_health_server():
-    port = int(os.environ.get("PORT", 10000))
-    httpd = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    httpd = HTTPServer(('0.0.0.0', 10000), HealthCheckHandler)
     httpd.serve_forever()
-
 # --- RENDER API HELPERS ---
 def get_headers(context: ContextTypes.DEFAULT_TYPE):
     api_key = context.user_data.get("api_key")
