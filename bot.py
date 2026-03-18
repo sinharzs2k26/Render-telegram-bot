@@ -79,7 +79,6 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📢 Broadcast a message", callback_data="broadcast")],
         [InlineKeyboardButton("🔄 Refresh", callback_data="refresh")],
         [InlineKeyboardButton("🆔 Get all IDs", callback_data="get_ids")],
-        [InlineKeyboardButton("📝 Update users.txt", callback_data="update_users")]
     ]
     if update.message:
         await update.message.reply_text(bot_status_txt, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -89,8 +88,7 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-async def broadcast(user_input, update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message_to_send = user_input
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not os.path.exists("users.txt"):
         await message.reply_text("No users to broadcast to.")
         return
@@ -470,7 +468,7 @@ async def handle_reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt_text = prompt_msg.text
     user_input = update.message.text.strip()
     if "broadcast" in prompt_text:
-        result_msg = await broadcast(user_input, update, context)
+        result_msg = await broadcast(update, context)
         await update.message.reply_text(result_msg)
         return
     elif "API" in prompt_text:
